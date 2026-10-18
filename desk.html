@@ -47,6 +47,14 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--ink);outline-offset
 .tile .v{font:600 22px/1.2 var(--body);font-variant-numeric:tabular-nums;margin-top:4px;overflow-wrap:anywhere}
 .tile .s{font-size:12px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
 .buy{color:var(--buy)} .sell{color:var(--sell)}
+.goal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:8px}
+.goal-top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px}
+.goal .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.goal .s{font-size:12px;color:var(--muted)}
+.goal-num{font:400 clamp(34px,9vw,48px)/1 var(--display);font-variant-numeric:tabular-nums}
+.goal-num span{font:500 18px var(--body);color:var(--muted)}
+.bar{height:10px;border-radius:99px;background:var(--tag);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--buy);border-radius:99px;transition:width .6s ease}
 section h2{font:600 13px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
 .tape{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
 table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
@@ -84,11 +92,18 @@ tr.fresh td{animation:flash 2.4s ease-out}
     <button id="refresh" type="button">Jetzt aktualisieren</button>
   </div>
 
+  <div class="goal" aria-labelledby="goal-k">
+    <div class="goal-top"><span class="k" id="goal-k">Ziel bis 25.10.: echte Käufer seit Launch</span><span class="s" id="g-stamp">–</span></div>
+    <div class="goal-num"><b id="g-real">–</b> <span>/ 50</span></div>
+    <div class="bar" role="progressbar" aria-labelledby="goal-k" aria-valuemin="0" aria-valuemax="50" id="g-bar"><i id="g-fill"></i></div>
+    <div class="s" id="g-cov">–</div>
+  </div>
+
   <div class="tiles">
     <div class="tile"><div class="k">Marktkapitalisierung</div><div class="v" id="t-mc">–</div><div class="s" id="t-price">–</div></div>
     <div class="tile"><div class="k">Letzte Stunde</div><div class="v"><span class="buy" id="t-b1">–</span> / <span class="sell" id="t-s1">–</span></div><div class="s">Käufe / Verkäufe</div></div>
     <div class="tile"><div class="k">24 Stunden</div><div class="v"><span class="buy" id="t-b24">–</span> / <span class="sell" id="t-s24">–</span></div><div class="s" id="t-vol">–</div></div>
-    <div class="tile"><div class="k">Echte Käufer</div><div class="v" id="t-real">–</div><div class="s">ohne dich und Bots</div></div>
+    <div class="tile"><div class="k">Echte Käufer 24 h</div><div class="v" id="t-real">–</div><div class="s">ohne dich und Bots</div></div>
     <div class="tile"><div class="k">Deine Position</div><div class="v" id="t-pos">–</div><div class="s" id="t-posusd">–</div></div>
   </div>
 
@@ -100,7 +115,7 @@ tr.fresh td{animation:flash 2.4s ease-out}
     </table></div>
   </section>
 
-  <p class="note">Daten: DexScreener (Preis, Zähler), GeckoTerminal (einzelne Trades der letzten 24 h) Deine Position ist aus deinen Trades in dieser Liste summiert. Die Seite aktualisiert sich alle 30 Sekunden. „Bot“ heißt: Dieselbe Wallet hat innerhalb von 60 Sekunden gekauft und wieder verkauft. Die Seite ist nirgends verlinkt und für Suchmaschinen gesperrt.</p>
+  <p class="note">Daten: DexScreener (Preis, Zähler), GeckoTerminal (einzelne Trades der letzten 24 h) Deine Position ist aus deinen Trades in dieser Liste summiert. Die Seite aktualisiert sich alle 30 Sekunden. „Echte Käufer seit Launch“ zählt ein Sammler auf dem Mac alle 15 Minuten und lädt das Ergebnis zu GitHub hoch. „Bot“ heißt: Dieselbe Wallet hat innerhalb von 60 Sekunden gekauft und wieder verkauft. Die Seite ist nirgends verlinkt und für Suchmaschinen gesperrt.</p>
 </main>
 
 <script>
@@ -213,12 +228,26 @@ function renderTrades(trades) {
   $('pulse-text').textContent = (quiet ? 'Ruhig' : 'Aktiv') + ', letzter Trade ' + ago(last);
 }
 
+const STATS = 'https://raw.githubusercontent.com/kochhafeny-lang/snoozelisk-site/stats/stats.json';
+async function loadGoal() {
+  const g = await getJSON(STATS + '?t=' + Math.floor(Date.now() / 60000));
+  const n = Number(g.real_buyers), goal = Number(g.goal) || 50;
+  if (!Number.isFinite(n)) throw new Error('Sammler hat noch keine Zahl geliefert');
+  $('g-real').textContent = n;
+  $('g-fill').style.width = Math.min(100, n / goal * 100) + '%';
+  $('g-bar').setAttribute('aria-valuenow', String(n));
+  $('g-stamp').textContent = 'Sammler-Stand ' + new Date(g.updated).toLocaleString('de-DE', {weekday: 'short', hour: '2-digit', minute: '2-digit'});
+  $('g-cov').textContent = String(g.coverage || '').startsWith('LÜCKE') ? 'Achtung: ' + g.coverage : `${g.bots} Bots und deine Käufe nicht mitgezählt · ${g.trades} Trades seit Launch erfasst`;
+}
+
 async function refresh() {
   left = EVERY;
   const errors = [];
+  const goalDone = loadGoal().catch(e => errors.push('Ziel: ' + e.message));
   await loadPair().catch(e => errors.push(e.message));
   const trades = await loadTrades().catch(e => { errors.push(e.message); return null; });
   if (trades) { renderTrades(trades); renderPosition(trades); firstLoad = false; }
+  await goalDone;
   $('stamp').textContent = new Date().toLocaleTimeString('de-DE');
   if (errors.length) { $('pulse').className = 'pill err'; $('pulse-text').textContent = 'Teilweise veraltet: ' + errors.join(' · '); }
 }
