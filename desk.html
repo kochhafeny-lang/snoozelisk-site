@@ -99,13 +99,12 @@ tr.fresh td{animation:flash 2.4s ease-out}
     </table></div>
   </section>
 
-  <p class="note">Daten: DexScreener (Preis, Zähler), GeckoTerminal (einzelne Trades der letzten 24 h) und Solana-RPC (deine Position). Die Seite aktualisiert sich alle 30 Sekunden. „Bot“ heißt: Dieselbe Wallet hat innerhalb von 60 Sekunden gekauft und wieder verkauft. Die Seite ist nirgends verlinkt und für Suchmaschinen gesperrt.</p>
+  <p class="note">Daten: DexScreener (Preis, Zähler), GeckoTerminal (einzelne Trades der letzten 24 h) Deine Position ist aus deinen Trades in dieser Liste summiert. Die Seite aktualisiert sich alle 30 Sekunden. „Bot“ heißt: Dieselbe Wallet hat innerhalb von 60 Sekunden gekauft und wieder verkauft. Die Seite ist nirgends verlinkt und für Suchmaschinen gesperrt.</p>
 </main>
 
 <script>
 const CA = 'E1i3QNC1912m7BJfnGfeznsuESo5ikwLdqafzLhFpump';
 const DEV = 'ARWYNNftc9LXetngjFNK3Jvoc2ERL5MU7m2o7LTnnmCB';
-const RPC = 'https://api.mainnet-beta.solana.com';
 const EVERY = 30;
 const $ = id => document.getElementById(id);
 const usd = (n, d = 2) => n == null || isNaN(n) ? '–' : '$' + Number(n).toLocaleString('de-DE', {minimumFractionDigits: d, maximumFractionDigits: d});
@@ -164,11 +163,13 @@ async function loadTrades() {
   }).filter(t => B58.test(t.wallet) && B58.test(t.tx)).sort((a, b) => b.t - a.t);
 }
 
-async function loadPosition() {
-  const body = {jsonrpc: '2.0', id: 1, method: 'getTokenAccountsByOwner', params: [DEV, {mint: CA}, {encoding: 'jsonParsed'}]};
-  const d = await getJSON(RPC, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body)});
-  if (d.error) throw new Error(d.error.message);
-  return (d.result?.value || []).reduce((s, a) => s + Number(a.account.data.parsed.info.tokenAmount.uiAmount || 0), 0);
+// Public Solana RPCs refuse browser calls, so the position is summed from your own trades in the tape.
+function renderPosition(trades) {
+  const mine = trades.filter(t => t.wallet === DEV);
+  const tokens = mine.reduce((s, t) => s + (t.buy ? t.snzl : -t.snzl), 0);
+  const spent = mine.reduce((s, t) => s + (t.buy ? t.usd : -t.usd), 0);
+  $('t-pos').textContent = num(tokens) + ' SNZL';
+  $('t-posusd').textContent = (lastPrice ? 'wert ≈ ' + usd(tokens * lastPrice) : '–') + ' · eingesetzt ' + usd(spent);
 }
 
 function botWallets(trades) {
@@ -215,15 +216,8 @@ async function refresh() {
   left = EVERY;
   const errors = [];
   await loadPair().catch(e => errors.push(e.message));
-  const [trades, pos] = await Promise.all([
-    loadTrades().catch(e => { errors.push(e.message); return null; }),
-    loadPosition().catch(e => { errors.push('Position: ' + e.message); return null; })
-  ]);
-  if (trades) { renderTrades(trades); firstLoad = false; }
-  if (pos != null) {
-    $('t-pos').textContent = num(pos) + ' SNZL';
-    $('t-posusd').textContent = lastPrice ? '≈ ' + usd(pos * lastPrice) : '–';
-  }
+  const trades = await loadTrades().catch(e => { errors.push(e.message); return null; });
+  if (trades) { renderTrades(trades); renderPosition(trades); firstLoad = false; }
   $('stamp').textContent = new Date().toLocaleTimeString('de-DE');
   if (errors.length) { $('pulse').className = 'pill err'; $('pulse-text').textContent = 'Teilweise veraltet: ' + errors.join(' · '); }
 }
