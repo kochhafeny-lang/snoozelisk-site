@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>SNZL Desk</title>
+<link rel="icon" type="image/png" href="assets/images/favicon.png">
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<style>
+/* Layout: one narrow column — status line, number tiles, then the trade tape. */
+:root{
+  --bg:#f6efdc; --panel:#fff9e9; --ink:#281d2e; --muted:#665d61; --line:rgba(40,29,46,.18);
+  --buy:#3f7a2e; --buy-bg:#dfe9c4; --sell:#a4442b; --sell-bg:#f6d6c4; --tag:#ece3cb;
+  --display:'Bowlby One SC', 'Arial Black', sans-serif;
+  --body:'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono:ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#1d1521; --panel:#281d2e; --ink:#f6efdc; --muted:#b7aeb0; --line:rgba(246,239,220,.16);
+  --buy:#b9d28a; --buy-bg:#33402a; --sell:#f0a587; --sell-bg:#4a2a26; --tag:#3a2d40; color-scheme:dark}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);
+  padding-block:max(20px, env(safe-area-inset-top, 0px)) max(32px, env(safe-area-inset-bottom, 0px));
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+main{max-width:860px;margin:0 auto;display:grid;gap:22px}
+a{color:inherit}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 16px;border-bottom:1px solid var(--line);padding-bottom:14px}
+h1{font:400 clamp(26px,6vw,38px)/1 var(--display);margin:0;letter-spacing:.01em}
+h1 small{font:500 13px var(--body);color:var(--muted);letter-spacing:.04em;margin-left:6px}
+.links{display:flex;gap:14px;font-size:13px}
+.links a{color:var(--muted)}
+.status{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;font-size:13px;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-weight:600;font-size:12px;letter-spacing:.03em;background:var(--tag);color:var(--ink)}
+.pill.live{background:var(--buy-bg);color:var(--buy)}
+.pill.quiet{background:var(--tag);color:var(--muted)}
+.pill.err{background:var(--sell-bg);color:var(--sell)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+button{font:600 13px var(--body);color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:99px;padding:5px 12px;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.tile{background:var(--panel);padding:14px 16px;min-width:0}
+.tile .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tile .v{font:600 22px/1.2 var(--body);font-variant-numeric:tabular-nums;margin-top:4px;overflow-wrap:anywhere}
+.tile .s{font-size:12px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+.buy{color:var(--buy)} .sell{color:var(--sell)}
+section h2{font:600 13px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.tape{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right}
+.kind{display:inline-block;min-width:62px;text-align:center;padding:2px 8px;border-radius:6px;font-weight:700;font-size:12px}
+.kind.buy{background:var(--buy-bg)} .kind.sell{background:var(--sell-bg)}
+.tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:5px;font-size:11px;font-weight:700;background:var(--tag)}
+.tag.me{background:var(--ink);color:var(--bg)}
+.wallet{font-family:var(--mono);font-size:13px}
+.empty{padding:22px;color:var(--muted)}
+.note{font-size:12px;color:var(--muted);max-width:65ch;margin:0}
+tr.fresh td{animation:flash 2.4s ease-out}
+@keyframes flash{from{background:var(--buy-bg)}to{background:transparent}}
+@media (prefers-reduced-motion: reduce){tr.fresh td{animation:none}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>$SNZL <small>Desk</small></h1>
+    <nav class="links" aria-label="Externe Ansichten">
+      <a id="lnk-pump" href="#" target="_blank" rel="noopener noreferrer">pump.fun ↗</a>
+      <a id="lnk-dex" href="#" target="_blank" rel="noopener noreferrer">DexScreener ↗</a>
+      <a id="lnk-scan" href="#" target="_blank" rel="noopener noreferrer">Solscan ↗</a>
+    </nav>
+  </header>
+
+  <div class="status" aria-live="polite">
+    <span id="pulse" class="pill quiet"><span class="dot"></span><span id="pulse-text">Lade …</span></span>
+    <span>Stand: <b id="stamp">–</b></span>
+    <span id="countdown"></span>
+    <button id="refresh" type="button">Jetzt aktualisieren</button>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="k">Marktkapitalisierung</div><div class="v" id="t-mc">–</div><div class="s" id="t-price">–</div></div>
+    <div class="tile"><div class="k">Letzte Stunde</div><div class="v"><span class="buy" id="t-b1">–</span> / <span class="sell" id="t-s1">–</span></div><div class="s">Käufe / Verkäufe</div></div>
+    <div class="tile"><div class="k">24 Stunden</div><div class="v"><span class="buy" id="t-b24">–</span> / <span class="sell" id="t-s24">–</span></div><div class="s" id="t-vol">–</div></div>
+    <div class="tile"><div class="k">Echte Käufer</div><div class="v" id="t-real">–</div><div class="s">ohne dich und Bots</div></div>
+    <div class="tile"><div class="k">Deine Position</div><div class="v" id="t-pos">–</div><div class="s" id="t-posusd">–</div></div>
+  </div>
+
+  <section aria-labelledby="tape-h">
+    <h2 id="tape-h">Alle Trades, neueste oben</h2>
+    <div class="tape"><table>
+      <thead><tr><th>Zeit</th><th>Art</th><th class="num">USD</th><th class="num">SOL</th><th class="num">SNZL</th><th>Wallet</th><th>Tx</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="7" class="empty">Trades werden geladen …</td></tr></tbody>
+    </table></div>
+  </section>
+
+  <p class="note">Daten: DexScreener (Preis, Zähler), GeckoTerminal (einzelne Trades der letzten 24 h) und Solana-RPC (deine Position). Die Seite aktualisiert sich alle 30 Sekunden. „Bot“ heißt: Dieselbe Wallet hat innerhalb von 60 Sekunden gekauft und wieder verkauft. Die Seite ist nirgends verlinkt und für Suchmaschinen gesperrt.</p>
+</main>
+
+<script>
+const CA = 'E1i3QNC1912m7BJfnGfeznsuESo5ikwLdqafzLhFpump';
+const DEV = 'ARWYNNftc9LXetngjFNK3Jvoc2ERL5MU7m2o7LTnnmCB';
+const RPC = 'https://api.mainnet-beta.solana.com';
+const EVERY = 30;
+const $ = id => document.getElementById(id);
+const usd = (n, d = 2) => n == null || isNaN(n) ? '–' : '$' + Number(n).toLocaleString('de-DE', {minimumFractionDigits: d, maximumFractionDigits: d});
+const num = (n, d = 0) => n == null || isNaN(n) ? '–' : Number(n).toLocaleString('de-DE', {maximumFractionDigits: d});
+const short = a => a.slice(0, 4) + '…' + a.slice(-4);
+const ago = t => { const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+  return s < 60 ? `vor ${s} s` : s < 3600 ? `vor ${Math.floor(s / 60)} min` : s < 86400 ? `vor ${Math.floor(s / 3600)} h` : `vor ${Math.floor(s / 86400)} T`; };
+const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,90}$/;
+
+// Small DOM builder: every text goes in via textContent, never as HTML.
+function el(tag, props = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) k === 'text' ? n.textContent = v : n.setAttribute(k, v);
+  n.append(...kids);
+  return n;
+}
+const ext = (href, text, cls) => el('a', {href, target: '_blank', rel: 'noopener noreferrer', ...(cls ? {class: cls} : {}), text});
+
+$('lnk-pump').href = 'https://pump.fun/coin/' + CA;
+$('lnk-scan').href = 'https://solscan.io/token/' + CA;
+$('lnk-dex').href = 'https://dexscreener.com/solana/' + CA;
+
+let pool = null, lastPrice = null, firstLoad = true, left = EVERY, unread = 0;
+const seen = new Set();
+
+async function getJSON(url, opts) {
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error(new URL(url).hostname + ' antwortet ' + r.status);
+  return r.json();
+}
+
+async function loadPair() {
+  const d = await getJSON('https://api.dexscreener.com/latest/dex/tokens/' + CA);
+  const p = (d.pairs || []).find(x => x.chainId === 'solana');
+  if (!p) throw new Error('DexScreener kennt das Paar noch nicht');
+  if (B58.test(p.pairAddress)) pool = p.pairAddress;
+  lastPrice = Number(p.priceUsd);
+  $('t-mc').textContent = usd(p.marketCap ?? p.fdv, 0);
+  $('t-price').textContent = 'Preis ' + usd(p.priceUsd, 8);
+  $('t-b1').textContent = p.txns?.h1?.buys ?? '–';
+  $('t-s1').textContent = p.txns?.h1?.sells ?? '–';
+  $('t-b24').textContent = p.txns?.h24?.buys ?? '–';
+  $('t-s24').textContent = p.txns?.h24?.sells ?? '–';
+  $('t-vol').textContent = 'Volumen 24 h ' + usd(p.volume?.h24, 0);
+}
+
+async function loadTrades() {
+  if (!pool) return null;
+  const d = await getJSON(`https://api.geckoterminal.com/api/v2/networks/solana/pools/${pool}/trades`);
+  return (d.data || []).map(x => {
+    const a = x.attributes, buy = a.kind === 'buy';
+    return {id: a.tx_hash + a.tx_from_address + a.kind, tx: a.tx_hash, wallet: a.tx_from_address, buy,
+      t: Date.parse(a.block_timestamp), usd: Number(a.volume_in_usd),
+      sol: Number(buy ? a.from_token_amount : a.to_token_amount),
+      snzl: Number(buy ? a.to_token_amount : a.from_token_amount)};
+  }).filter(t => B58.test(t.wallet) && B58.test(t.tx)).sort((a, b) => b.t - a.t);
+}
+
+async function loadPosition() {
+  const body = {jsonrpc: '2.0', id: 1, method: 'getTokenAccountsByOwner', params: [DEV, {mint: CA}, {encoding: 'jsonParsed'}]};
+  const d = await getJSON(RPC, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body)});
+  if (d.error) throw new Error(d.error.message);
+  return (d.result?.value || []).reduce((s, a) => s + Number(a.account.data.parsed.info.tokenAmount.uiAmount || 0), 0);
+}
+
+function botWallets(trades) {
+  const bots = new Set(), byWallet = {};
+  trades.forEach(t => (byWallet[t.wallet] ??= []).push(t));
+  for (const [w, list] of Object.entries(byWallet)) {
+    const buys = list.filter(t => t.buy), sells = list.filter(t => !t.buy);
+    if (buys.some(b => sells.some(s => s.t >= b.t && s.t - b.t <= 60000))) bots.add(w);
+  }
+  return bots;
+}
+
+function renderTrades(trades) {
+  const bots = botWallets(trades);
+  $('t-real').textContent = new Set(trades.filter(t => t.buy && t.wallet !== DEV && !bots.has(t.wallet)).map(t => t.wallet)).size;
+  const tb = $('rows');
+  if (!trades.length) {
+    tb.replaceChildren(el('tr', {}, el('td', {colspan: '7', class: 'empty', text: 'Noch keine Trades in den letzten 24 Stunden.'})));
+    return;
+  }
+  let fresh = 0;
+  tb.replaceChildren(...trades.map(t => {
+    const isNew = !seen.has(t.id); seen.add(t.id);
+    if (isNew && !firstLoad && t.buy && t.wallet !== DEV) fresh++;
+    const walletCell = el('td', {}, ext('https://solscan.io/account/' + t.wallet, short(t.wallet), 'wallet'));
+    if (t.wallet === DEV) walletCell.append(el('span', {class: 'tag me', text: 'Du'}));
+    else if (bots.has(t.wallet)) walletCell.append(el('span', {class: 'tag', text: 'Bot'}));
+    return el('tr', isNew && !firstLoad ? {class: 'fresh'} : {},
+      el('td', {title: new Date(t.t).toLocaleString('de-DE'), text: ago(t.t)}),
+      el('td', {}, el('span', {class: 'kind ' + (t.buy ? 'buy' : 'sell'), text: t.buy ? 'Kauf' : 'Verkauf'})),
+      el('td', {class: 'num', text: usd(t.usd)}),
+      el('td', {class: 'num', text: num(t.sol, 4)}),
+      el('td', {class: 'num', text: num(t.snzl)}),
+      walletCell,
+      el('td', {}, ext('https://solscan.io/tx/' + t.tx, 'ansehen ↗')));
+  }));
+  if (fresh && document.hidden) { unread += fresh; document.title = `(${unread}) SNZL Desk`; }
+  const last = trades[0].t, quiet = Date.now() - last > 15 * 60000;
+  $('pulse').className = 'pill ' + (quiet ? 'quiet' : 'live');
+  $('pulse-text').textContent = (quiet ? 'Ruhig' : 'Aktiv') + ', letzter Trade ' + ago(last);
+}
+
+async function refresh() {
+  left = EVERY;
+  const errors = [];
+  await loadPair().catch(e => errors.push(e.message));
+  const [trades, pos] = await Promise.all([
+    loadTrades().catch(e => { errors.push(e.message); return null; }),
+    loadPosition().catch(e => { errors.push('Position: ' + e.message); return null; })
+  ]);
+  if (trades) { renderTrades(trades); firstLoad = false; }
+  if (pos != null) {
+    $('t-pos').textContent = num(pos) + ' SNZL';
+    $('t-posusd').textContent = lastPrice ? '≈ ' + usd(pos * lastPrice) : '–';
+  }
+  $('stamp').textContent = new Date().toLocaleTimeString('de-DE');
+  if (errors.length) { $('pulse').className = 'pill err'; $('pulse-text').textContent = 'Teilweise veraltet: ' + errors.join(' · '); }
+}
+
+$('refresh').addEventListener('click', refresh);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { unread = 0; document.title = 'SNZL Desk'; } });
+setInterval(() => { left--; $('countdown').textContent = `nächste Aktualisierung in ${Math.max(left, 0)} s`; if (left <= 0) refresh(); }, 1000);
+refresh();
+</script>
+</body>
+</html>
