@@ -3,10 +3,10 @@
  "goal": 50,
  "bots": 3,
  "buys": 10,
- "sells": 5,
- "trades": 15,
+ "sells": 6,
+ "trades": 16,
  "first_trade": "2026-10-18T15:58:46Z",
- "last_trade": "2026-10-18T18:18:26Z",
+ "last_trade": "2026-10-19T03:22:39Z",
  "real_buyer_wallets": [
   "7StrK56myBZ8xAV1ybSaK6QmHvi9p81ajrYqLDpdYJSr",
   "8yicgAXVzJJ9Db37purxt6hnkWJuHqnZmHjyARV98s4q",
@@ -14,6 +14,6 @@
  ],
  "ca": "E1i3QNC1912m7BJfnGfeznsuESo5ikwLdqafzLhFpump",
  "launch": "2026-10-18T15:58:46Z",
- "updated": "2026-10-18T18:35:25Z",
- "coverage": "vollst\u00e4ndig (15 Trades im Abruf, 0 neu)"
+ "updated": "2026-10-19T03:40:00Z",
+ "coverage": "vollst\u00e4ndig (16 Trades im Abruf, 1 neu)"
 }
